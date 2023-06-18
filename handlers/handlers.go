@@ -2,8 +2,12 @@ package handlers
 
 import (
 	"encoding/json"
-	"fmt"
+	//"fmt"
+	//"log"
 	"net/http"
+	"strconv"
+
+	"github.com/gorilla/mux"
 )
 
 type User struct {
@@ -12,57 +16,63 @@ type User struct {
 	Email    string `json:"email"`
 }
 
-var users []User
 
-func HandleUsers(w http.ResponseWriter, r *http.Request) {
-	switch r.Method {
-	case http.MethodGet:
-		GetUsers(w, r)
-	case http.MethodPost:
-		CreateUser(w, r)
-	case http.MethodPut:
-		UpdateUser(w, r)
-	case http.MethodDelete:
-		DeleteUser(w, r)
-	default:
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		fmt.Fprint(w, "Invalid request method")
-	}
-}
+var Users []User
 
 func GetUsers(w http.ResponseWriter, r *http.Request) {
-	// take vector containing all users and put into response
-	json.NewEncoder(w).Encode(users)
+	json.NewEncoder(w).Encode(Users)
+}
+
+func GetUser(w http.ResponseWriter, r *http.Request) {
+	params := mux.Vars(r)
+	id, _ := strconv.Atoi(params["id"])
+
+	for _, user := range Users{
+		if user.ID == id {
+			json.NewEncoder(w).Encode(user)
+			return
+		}
+	}
+
+	json.NewEncoder(w).Encode("User not found")
 }
 
 func CreateUser(w http.ResponseWriter, r *http.Request) {
-	var user User
-	//request to create a user json
-	err := json.NewDecoder(r.Body).Decode(&user)
-	if err != nil {
-		// response is the bad request in error case
-		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprint(w, "Invalid request payload")
-		return
-	}
-
-	// Perform validation or any other necessary operations
-	//adding user creation to users (user is probably create by POST requisition)
-	users = append(users, user)
-
-	w.WriteHeader(http.StatusCreated)
-	response := map[string]interface{}{
-		"message": "User created successfully",
-		"user":    user,
-	}
-	// error or not added to server response
-	json.NewEncoder(w).Encode(response)
+	var newUser User
+	json.NewDecoder(r.Body).Decode(&newUser)
+	Users= append(Users, newUser)
+	json.NewEncoder(w).Encode(Users)
 }
 
 func UpdateUser(w http.ResponseWriter, r *http.Request) {
-	// Implement the logic to update a user
+	params := mux.Vars(r)
+	id, _ := strconv.Atoi(params["id"])
+
+	for index, user := range Users{
+		if user.ID == id {
+			Users= append(Users[:index], Users[index+1:]...) // Remove the old user
+			var updatedUser User
+			json.NewDecoder(r.Body).Decode(&updatedUser)
+			updatedUser.ID = id
+			Users= append(Users, updatedUser) // Add the updated user
+			json.NewEncoder(w).Encode(updatedUser)
+			return
+		}
+	}
+
+	json.NewEncoder(w).Encode("User not found")
 }
 
 func DeleteUser(w http.ResponseWriter, r *http.Request) {
-	// Implement the logic to delete a user
+	params := mux.Vars(r)
+	id, _ := strconv.Atoi(params["id"])
+
+	for index, user := range Users{
+		if user.ID == id {
+			Users= append(Users[:index], Users[index+1:]...) // Remove the user from the slice
+			break
+		}
+	}
+
+	json.NewEncoder(w).Encode(Users)
 }
